@@ -36,4 +36,7 @@ Conferir em largura de celular (barra inferior `#dock`) e de computador (menu la
 
 ## Fluxo de trabalho
 - Trabalhar em branch e só juntar na `main` (que publica o site) com o OK da Amanda.
+- Mudanças visuais (design, layout, cores, novos elementos de tela): mostrar antes um
+  mockup com dados fictícios (imagens antes/depois em celular e computador, ou prévia
+  clicável privada) e só alterar o código depois do OK da Amanda.
 - Se mudar o formato dos dados, avisar que o `code.gs` no Google também precisa ser atualizado.
