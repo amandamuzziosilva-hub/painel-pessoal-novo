@@ -29,6 +29,9 @@ app da Web do Apps Script (`code.gs`), que NÃO está neste repositório.
 - Uma função `viewXxx()` por aba (viewInicio, viewInv, viewDiario, viewSaude, viewRotina,
   viewViagens, viewProjetos, viewFinancas, viewPlan, viewArquivo).
 - `diario` e `rotina` são guardados um dia por linha na planilha e agrupados por mês no painel.
+- Ícones na raiz: `icon-64.png` (aba do navegador), `icon-180.png` (iPhone), `icon-192.png` e
+  `icon-512.png` (Android, via `manifest.webmanifest`). Arte: "am" em Instrument Serif itálico
+  sobre o degradê do `.avatar`.
 
 ## Como testar
 Abrir o `index.html` no navegador. Sem planilha conectada aparece a tela "Primeiro acesso".
