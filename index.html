@@ -348,6 +348,14 @@ dialog .mf{padding:14px 24px 20px;display:flex;justify-content:space-between;gap
 .pcol-h h3{display:flex;align-items:center;gap:8px;min-width:0;flex:1;font-size:.98rem}
 .pcol-h>span{white-space:nowrap;flex:none}
 .pcol-h .grip{cursor:grab;display:flex;flex:none}
+.navord-g{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+.navord-h,.navord-r{display:flex;align-items:center;gap:10px;padding:4px 2px}
+.navord-r{padding-left:10px;border-radius:10px}.navord-r:hover{background:var(--surface-2)}
+.navord-r>svg{width:16px;height:16px;flex:none;color:var(--ink-2)}.navord-r>span:first-of-type,.navord-h>.label{flex:1}
+.navord-b{display:flex;gap:4px}.navord-b .btn{width:32px}.navord-b .btn[disabled]{opacity:.3;cursor:default}
+.pcol-h .cnm{min-width:0;display:flex;flex-direction:column;line-height:1.25}
+.pcol-h .ccnt{color:var(--muted);font-weight:400;white-space:nowrap}
+.pcol-h .cmeta{font-size:.74rem;font-weight:400;color:var(--muted)}.pcol-h .cmeta.overn{color:var(--bad)}
 .cdot{width:8px;height:8px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 1px rgba(29,29,27,.12)}
 .colren{all:unset;background:#fff;border-radius:8px;padding:2px 8px;min-width:0;width:130px;font-size:.95rem}
 .dots{all:unset;cursor:pointer;margin-left:6px;padding:0 4px;color:var(--ink-2);letter-spacing:1px}
@@ -821,6 +829,11 @@ function openSettings(){
     <div class="field full"><label for="set-token">Senha</label><input id="set-token" name="token" type="password" value="${esc(CFG.token)}" autocomplete="off"></div>
     <p id="set-msg" class="small full" style="color:var(--bad)" hidden></p>
     <div class="full" style="border-top:1px solid var(--hair);padding-top:14px;display:flex;flex-direction:column;gap:10px">
+      <span class="label">Ordem do menu</span>
+      <p class="hint" style="margin:0">Use as setas para mudar a ordem das abas e dos grupos no menu. Início fica sempre no topo e Arquivo no fim.</p>
+      <div id="navord">${navOrdHTML()}</div>
+    </div>
+    <div class="full" style="border-top:1px solid var(--hair);padding-top:14px;display:flex;flex-direction:column;gap:10px">
       <span class="label">Backup</span>
       <div class="actions"><button type="button" class="btn sm soft" data-set="export">${ico('download')}Baixar backup</button><label class="btn sm soft" for="set-restore" style="cursor:pointer">${ico('upload')}Restaurar backup</label><input id="set-restore" type="file" accept=".json,application/json" hidden></div>
       <p class="hint">Restaurar soma os itens do arquivo aos da planilha. Itens com o mesmo identificador são atualizados.</p>
@@ -925,6 +938,29 @@ const IC={
 const ico=(k,a='')=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${a}>${IC[k]}</svg>`;
 const NAVDEF=[[null,[['inicio','home']]],['Inventários',[['skincare','drop'],['haircare','hair'],['bodycare','bottle'],['suplementos','pill'],['perfumes','spark']]],['Vida',[['diario','book'],['saude','heart'],['rotina','loop'],['planejamento','board'],['viagens','plane'],['projetos','folder'],['financas','wallet']]]];
 const TABL=Object.fromEntries(TABS);
+/* ordem do menu: [[grupo,[ids]],...] salva em painel_ajustes/menu; abas novas entram no fim do grupo padrão */
+function navDef(){
+  let sv=null; try{const d=(S.data.painel_ajustes||[]).find(x=>x.id==='menu');sv=d&&JSON.parse(d.valor)}catch(e){}
+  if(!Array.isArray(sv))return NAVDEF;
+  const icons=Object.fromEntries(NAVDEF.slice(1).flatMap(g=>g[1])); const seen=new Set();
+  const groups=sv.filter(g=>Array.isArray(g)&&NAVDEF.some(d=>d[0]&&d[0]===g[0])&&!seen.has('g:'+g[0])&&seen.add('g:'+g[0]))
+    .map(([g,ids])=>[g,(Array.isArray(ids)?ids:[]).filter(id=>icons[id]&&!seen.has(id)&&seen.add(id)).map(id=>[id,icons[id]])]);
+  NAVDEF.slice(1).forEach(([g,items])=>{let G=groups.find(x=>x[0]===g);if(!G){G=[g,[]];groups.push(G)}items.forEach(([id,ic])=>{if(!seen.has(id)){seen.add(id);G[1].push([id,ic])}})});
+  return [NAVDEF[0],...groups];
+}
+function navMove(kind,key,dir){
+  const gs=navDef().slice(1).map(([g,items])=>[g,items.map(x=>x[0])]);
+  if(kind==='g'){const i=gs.findIndex(x=>x[0]===key),j=i+dir;if(i<0||j<0||j>=gs.length)return;[gs[i],gs[j]]=[gs[j],gs[i]]}
+  else{const gi=gs.findIndex(x=>x[1].includes(key));if(gi<0)return;const l=gs[gi][1],i=l.indexOf(key),j=i+dir;
+    if(j>=0&&j<l.length){[l[i],l[j]]=[l[j],l[i]]}
+    else{const gj=gi+dir;if(gj<0||gj>=gs.length)return;l.splice(i,1);if(dir<0)gs[gj][1].push(key);else gs[gj][1].unshift(key)}}
+  save('painel_ajustes','menu',{valor:JSON.stringify(gs)});
+}
+function navOrdHTML(){
+  const arq=arqList(); const gs=navDef().slice(1);
+  return gs.map(([g,items],gi)=>`<div class="navord-g"><div class="navord-h"><span class="label">${g}</span><span class="navord-b"><button type="button" class="btn sm soft icon" data-navmv="g|${g}|-1" aria-label="Subir o grupo ${g}" ${gi===0?'disabled':''}>↑</button><button type="button" class="btn sm soft icon" data-navmv="g|${g}|1" aria-label="Descer o grupo ${g}" ${gi===gs.length-1?'disabled':''}>↓</button></span></div>
+    ${items.map(([id,ic],i)=>`<div class="navord-r">${ico(ic)}<span>${TABL[id]}${arq.includes(id)?' <span class="muted tiny">· arquivada</span>':''}</span><span class="navord-b"><button type="button" class="btn sm soft icon" data-navmv="t|${id}|-1" aria-label="Subir ${TABL[id]}" ${gi===0&&i===0?'disabled':''}>↑</button><button type="button" class="btn sm soft icon" data-navmv="t|${id}|1" aria-label="Descer ${TABL[id]}" ${gi===gs.length-1&&i===items.length-1?'disabled':''}>↓</button></span></div>`).join('')}</div>`).join('');
+}
 const ICONOF=Object.fromEntries(NAVDEF.flatMap(g=>g[1]));
 function arqList(){const d=(S.data.painel_ajustes||[]).find(x=>x.id==='arquivadas');return String(d&&d.valor||'').split(',').map(x=>x.trim()).filter(x=>ARQMAP[x])}
 const isArq=t=>arqList().includes(t);
@@ -943,7 +979,7 @@ function renderNav(){
   applySide();
   const cnt=c=>S.data[c]?S.data[c].filter(active).length:0;
   const arq=arqList();
-  const groups=NAVDEF.map(([g,items])=>[g,items.filter(([id])=>!arq.includes(id))]).filter(([g,items])=>items.length);
+  const groups=navDef().map(([g,items])=>[g,items.filter(([id])=>!arq.includes(id))]).filter(([g,items])=>items.length);
   groups.push([null,[['arquivo','archive']]]);
   $('#sidenav').innerHTML=groups.map(([g,items])=>`<div class="navgroup">${g?`<div class="label">${g}</div>`:''}${items.map(([id,ic])=>`<button class="nav" data-tab="${id}" title="${TABL[id]}" ${UI.tab===id?'aria-current="page"':''}>${ico(ic)}<span class="nl">${TABL[id]}</span>${id==='arquivo'&&arq.length?`<span class="count">${arq.length}</span>`:''}${INV.includes(id)&&S.ready?`<span class="count">${cnt(id)}</span>`:''}${id==='planejamento'&&S.ready&&S.data.tarefas.filter(t=>t.lixeira!=='true'&&t.feita!=='true').length?`<span class="count">${S.data.tarefas.filter(t=>t.lixeira!=='true'&&t.feita!=='true').length}</span>`:''}</button>`).join('')}</div>`).join('');
   $('#dock').innerHTML=groups.flatMap(g=>g[1]).map(([id,ic])=>`<button data-tab="${id}" aria-label="${TABL[id]}" ${UI.tab===id?'aria-current="page"':''}>${ico(ic)}</button>`).join('')+`<button data-act="settings" aria-label="Ajustes">${ico('gear')}</button>`;
@@ -1470,7 +1506,7 @@ function planCfg(){
 function cfgPut(patch){const c=planCfg();return save('plan_ajustes','config',{valor:JSON.stringify({...c,...patch})})}
 function planCols(){return S.data.colunas.filter(c=>c.lixeira!=='true').sort((a,b)=>pn(a.ordem)-pn(b.ordem))}
 function colOf(t,cols){return cols.some(c=>c.id===t.coluna)?t.coluna:(cols[0]&&cols[0].id)}
-function colTasks(id){const cols=planCols();return S.data.tarefas.filter(t=>tOpen(t)&&t.solta!=='true'&&colOf(t,cols)===id).sort((a,b)=>pn(a.ordem)-pn(b.ordem)||String(a.criada_em).localeCompare(String(b.criada_em)))}
+function colTasks(id){const cols=planCols();return S.data.tarefas.filter(t=>tOpen(t)&&t.solta!=='true'&&colOf(t,cols)===id).sort((a,b)=>(a.prazo?0:1)-(b.prazo?0:1)||String(a.prazo||'').localeCompare(String(b.prazo||''))||pn(a.ordem)-pn(b.ordem)||String(a.criada_em).localeCompare(String(b.criada_em)))}
 const looseTasks=()=>S.data.tarefas.filter(t=>tOpen(t)&&t.solta==='true').sort((a,b)=>String(a.criada_em).localeCompare(String(b.criada_em)));
 const trashTasks=()=>S.data.tarefas.filter(t=>t.lixeira==='true');
 const trashCols=()=>S.data.colunas.filter(c=>c.lixeira==='true');
@@ -1593,8 +1629,8 @@ function colHTML(c,cfg){
     :`<button type="button" class="addrow" data-padd="${c.id}">${ico('plus')}Adicionar tarefa</button>`;
   return `<section class="pcol" data-col="${c.id}">
     <div class="pcol-h" draggable="true" data-colh="${c.id}">
-      <h3><span class="grip" title="Arraste para mudar a ordem">${GRIP}</span><i class="cdot" style="background:${esc(c.cor||'#B9B6B0')}"></i>${P.ren===c.id?`<input class="colren" data-pcolname="${c.id}" value="${esc(c.nome)}" aria-label="Nome da coluna">`:esc(c.nome)}<span class="muted" style="font-weight:400"> · ${ts.length}</span></h3>
-      <span class="tiny ${over?'overn':'muted'}">${meta}<button type="button" class="dots" data-pmenu="${c.id}" aria-label="Opções da coluna ${esc(c.nome)}">···</button></span>
+      <h3><span class="grip" title="Arraste para mudar a ordem">${GRIP}</span><i class="cdot" style="background:${esc(c.cor||'#B9B6B0')}"></i>${P.ren===c.id?`<input class="colren" data-pcolname="${c.id}" value="${esc(c.nome)}" aria-label="Nome da coluna">`:`<span class="cnm"><span>${esc(c.nome)} <span class="ccnt">· ${ts.length}</span></span>${meta?`<span class="cmeta${over?' overn':''}">${meta}</span>`:''}</span>`}</h3>
+      <span class="tiny muted"><button type="button" class="dots" data-pmenu="${c.id}" aria-label="Opções da coluna ${esc(c.nome)}">···</button></span>
     </div>${menu}${add}${ts.map(t=>taskCard(t,cfg)).join('')}</section>`;
 }
 function newColHTML(){
@@ -1648,7 +1684,7 @@ function viewQuadro(cfg){
     ${cotaPanel(cfg)}
   </section>`;
   const concl=S.data.tarefas.filter(x=>x.feita==='true'&&x.lixeira!=='true').sort((a,b)=>String(b.feita_em).localeCompare(String(a.feita_em)));
-  const doneBox=concl.length?`<section class="sec"><button type="button" class="chip" data-pdonetoggle aria-pressed="${UI.plan.showDone}">Concluídas <em>${concl.length}</em></button>${UI.plan.showDone?`<div class="panel"><div class="rows">${concl.slice(0,30).map(x=>`<div class="rowi" style="cursor:default"><div><b style="text-decoration:line-through;color:var(--muted)">${esc(x.titulo)}</b><div class="sub">${x.feita_em?fmtD(String(x.feita_em).slice(0,10)):''}</div></div><button type="button" class="btn sm soft" data-pdone="${x.id}">Reabrir</button></div>`).join('')}</div></div>`:''}</section>`:'';
+  const doneBox=concl.length?`<section class="sec"><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="chip" data-pdonetoggle aria-pressed="${UI.plan.showDone}">Concluídas <em>${concl.length}</em></button><button type="button" class="chip" data-pdoneclear>${UI.plan.confirm==='done'?`Confirmar: apagar ${concl.length} de vez`:`Limpar concluídas`}</button></div>${UI.plan.showDone?`<div class="panel"><div class="rows">${concl.slice(0,30).map(x=>`<div class="rowi" style="cursor:default"><div><b style="text-decoration:line-through;color:var(--muted)">${esc(x.titulo)}</b><div class="sub">${x.feita_em?fmtD(String(x.feita_em).slice(0,10)):''}</div></div><button type="button" class="btn sm soft" data-pdone="${x.id}">Reabrir</button></div>`).join('')}</div></div>`:''}</section>`:'';
   return `<div class="mnav">${mobSwitch('quadro')}</div>
   ${pHead('Seu dia,<br><em>em colunas</em>',new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'}).replace(/^./,c=>c.toUpperCase()),'',UI.plan.view)}
   ${stats([[p2(hojeT.length),'Hoje','lime'],[mins?`${mins}<small> min</small>`:'—','Tempo previsto'],[p2(off.length+pacN),'Só no consultório'],[p2(venc.length),'Prazo hoje ou atrasado',venc.length?'rose':'']])}
@@ -1926,6 +1962,7 @@ document.addEventListener('click',async e=>{
   if(el=g('[data-pdel2]')){UI.plan.confirm='acol:'+el.dataset.pdel2;render(true);return}
   if(el=g('[data-pdelok2]')){trashColumn(el.dataset.pdelok2);UI.plan.confirm=null;render(true);return}
   if(g('[data-pdonetoggle]')){UI.plan.showDone=!UI.plan.showDone;render(true);return}
+  if(g('[data-pdoneclear]')){if(UI.plan.confirm!=='done'){UI.plan.confirm='done';render(true);return}UI.plan.confirm=null;const ds=S.data.tarefas.filter(x=>x.feita==='true'&&x.lixeira!=='true');ds.forEach(x=>remove('tarefas',x.id));toast(`${ds.length} ${ds.length===1?'concluída apagada':'concluídas apagadas'}`);render(true);return}
   if(el=g('[data-pcota]')){const cfg=planCfg();cfgPut({cotas:cfg.cotas.map(c=>c.id===el.dataset.pcota?{...c,feitas:(c.dia===today()?pn(c.feitas):0)+1,dia:today(),fila:Math.max(0,pn(c.fila)-1)}:c)});render(true);return}
   /* ritual */
   if(el=g('[data-pcat]')){openTask(el.dataset.pcat,null);return}
@@ -2017,7 +2054,7 @@ document.addEventListener('drop',e=>{
   if(!dragInfo)return; const col=e.target.closest&&e.target.closest('.pcol[data-col]'); if(!col)return; e.preventDefault();
   const info=dragInfo; dragInfo=null; document.querySelectorAll('.dragging,.over').forEach(x=>x.classList.remove('dragging','over'));
   if(info.type==='t'){
-    const cid=col.dataset.col; const cards=[...col.querySelectorAll('[data-tk]')].filter(x=>x.dataset.tk!==info.id);
+    const cid=col.dataset.col; const cards=[...col.querySelectorAll('[data-tk]')].filter(x=>x.dataset.tk!==info.id&&!(S.data.tarefas.find(t=>t.id===x.dataset.tk)||{}).prazo);
     let idx=cards.findIndex(c=>{const r=c.getBoundingClientRect();return e.clientY<r.top+r.height/2}); if(idx<0)idx=cards.length;
     const ord=id=>pn((S.data.tarefas.find(t=>t.id===id)||{}).ordem);
     const prev=cards[idx-1]?ord(cards[idx-1].dataset.tk):null, next=cards[idx]?ord(cards[idx].dataset.tk):null;
@@ -2172,6 +2209,8 @@ $('#dlgform').addEventListener('submit',async e=>{
 });
 $('#dlgform').addEventListener('click',async e=>{
   if(e.target.closest('[data-close]')){$('#dlg').close();formCtx=null;return}
+  const nm=e.target.closest('[data-navmv]');
+  if(nm){const [k,key,d]=nm.dataset.navmv.split('|');navMove(k,key,+d);$('#navord').innerHTML=navOrdHTML();renderNav();return}
   const st=e.target.closest('[data-set]');
   if(st){ if(st.dataset.set==='export'){baixar(`sistema-pessoal-backup-${today()}.json`,JSON.stringify({formato:'sistema-pessoal',versao:1,dados:S.data}),'application/json')}
     else if(st.dataset.set==='logout'){ if(st.dataset.confirm){lsSet('sp-url','');lsSet('sp-token','');lsSet('sp-cache','');lsSet('sp-pending','');CFG.url='';CFG.token='';S.pending={};COLS.forEach(c=>S.data[c]=[]);S.ready=false;S.mode='setup';$('#dlg').close();formCtx=null;setStoreBadge();render(true)} else{st.dataset.confirm='1';st.textContent='Confirmar: apagar dados deste aparelho'} }
