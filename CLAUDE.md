@@ -68,8 +68,11 @@ Conferir em largura de celular (barra inferior `#dock`) e de computador (menu la
 
 ## Fluxo de trabalho
 - Trabalhar em branch e só juntar na `main` (que publica o site) com o OK da Amanda.
-- Mudanças visuais (design, layout, cores, novos elementos de tela): mostrar antes um
-  mockup com dados fictícios (imagens antes/depois em celular e computador, ou prévia
-  clicável privada) e só alterar o código depois do OK da Amanda.
+- **Como tratar cada pedido de alteração** (para gastar poucos recursos):
+  1. **Resuma primeiro.** Antes de mexer em qualquer coisa, escreva em poucas linhas, em português simples, o que você entendeu do pedido.
+  2. **Alteração pequena** (um ícone, botão, texto, função simples, ajuste estrutural ou melhoria no código sem mudar a aparência): não precisa de mockup. Depois do resumo, faça direto. Só pare para perguntar se o pedido estiver ambíguo.
+  3. **Alteração grande** (principalmente visual: layout, nova tela, mudança de cores ou da estrutura de uma tela): depois do resumo, pergunte se a Amanda prefere ver um mockup ou fazer a alteração direto. Recomende o mockup. Se a Amanda disser que você entendeu certo e pedir para seguir, faça direto.
+  4. **Mockup, quando pedido:** use dados fictícios e mostre antes e depois em largura de celular e de computador, ou uma prévia clicável privada. Só altere o código depois do OK.
+  5. **Mudança no formato dos dados:** explique em palavras simples o que vai mudar e espere o OK antes de alterar.
 - Ao terminar, diga em poucas linhas o que mudou e o que a Amanda precisa fazer para colocar no ar.
 - Se uma regra ou parte do mapa mudar, atualize este arquivo.
