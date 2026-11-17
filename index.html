@@ -581,6 +581,7 @@ const USO=['Sim','Às vezes','Não','Acabou','Descartado'];
 const SCHEMA={
   skincare:{title:'produto',noun:'produto',fields:[
     {k:'produto',l:'Produto',t:'text',req:1,full:1,al:['nome','item']},
+    {k:'marca',l:'Marca',t:'marca',al:['brand','fabricante']},
     {k:'categoria',l:'Categoria',t:'cat'},
     {k:'ativo',l:'Ativo / foco',t:'text',al:['ativofoco','foco']},
     {k:'turno',l:'Quando uso',t:'select',o:['','Manhã','Noite','Manhã e noite','Pontual']},
@@ -592,6 +593,7 @@ const SCHEMA={
     {k:'feedback',l:'Feedback',t:'textarea',full:1,al:['obs','observacao','notas','comentario']}]},
   suplementos:{title:'nome',noun:'suplemento',fields:[
     {k:'nome',l:'Nome',t:'text',req:1,full:1,al:['produto','suplemento']},
+    {k:'marca',l:'Marca',t:'marca',al:['brand','fabricante']},
     {k:'tipo',l:'Tipo',t:'select',o:['','Vitamina','Mineral','Proteína','Ômega-3','Probiótico','Fitoterápico','Outro']},
     {k:'em_uso',l:'Em uso?',t:'select',o:USO,al:['emuso']},
     {k:'dose',l:'Dose',t:'text'},
@@ -680,6 +682,7 @@ const SCHEMA={
 };
 SCHEMA.haircare={title:'produto',noun:'produto',fields:[
     {k:'produto',l:'Produto',t:'text',req:1,full:1,al:['nome','item']},
+    {k:'marca',l:'Marca',t:'marca',al:['brand','fabricante']},
     {k:'categoria',l:'Categoria',t:'cat'},
     {k:'ativo',l:'Ativo / foco',t:'text',al:['ativofoco','foco']},
     {k:'turno',l:'Quando uso',t:'select',o:['','Todo lavado','Dia sim, dia não','1× por semana','Pontual']},
@@ -691,6 +694,7 @@ SCHEMA.haircare={title:'produto',noun:'produto',fields:[
     {k:'feedback',l:'Feedback',t:'textarea',full:1,al:['obs','observacao','notas','comentario']}]};
 SCHEMA.bodycare={title:'produto',noun:'produto',fields:[
     {k:'produto',l:'Produto',t:'text',req:1,full:1,al:['nome','item']},
+    {k:'marca',l:'Marca',t:'marca',al:['brand','fabricante']},
     {k:'categoria',l:'Categoria',t:'cat'},
     {k:'ativo',l:'Ativo / foco',t:'text',al:['ativofoco','foco']},
     {k:'turno',l:'Quando uso',t:'select',o:['','Manhã','Noite','Pós-banho','Pontual']},
@@ -1077,8 +1081,8 @@ const INVCOPY={
   bodycare:{tag:'Inventário',t:'Cuidados com o <em>corpo</em>',lede:'Hidratantes, óleos e cremes corporais, organizados pela validade para nada vencer esquecido no armário.'},
   perfumes:{tag:'Inventário',t:'Perfumes,<br>por ordem de <em>uso</em>',lede:'Validade e prazo depois de aberto, para decidir qual usar antes.'}};
 function invSub(col,i){
-  if(CATINV.includes(col))return esc(i.ativo||i.categoria);
-  if(col==='suplementos'){const sl=stockLeft(i);return esc([i.dose,i.horario].filter(Boolean).join(' · '))+(sl?`${i.dose||i.horario?' · ':''}${sl.left} un.`:'')}
+  if(CATINV.includes(col))return esc([i.marca,i.ativo||i.categoria].filter(Boolean).join(' · '));
+  if(col==='suplementos'){const sl=stockLeft(i);return esc([i.marca,i.dose,i.horario].filter(Boolean).join(' · '))+(sl?`${i.marca||i.dose||i.horario?' · ':''}${sl.left} un.`:'')}
   return esc([i.marca,i.familia].filter(Boolean).join(' · '));
 }
 function viewInv(col){
@@ -2165,7 +2169,9 @@ let formCtx=null;
 function fieldHTML(col,f,v){
   const id='f-'+f.k; const val=v??'';
   let input;
-  if(f.t==='cat'){const opts=catList(col);const list=val&&!opts.includes(val)?[val,...opts]:opts;
+  if(f.t==='marca'){const opts=brandList(col);const list=val&&!opts.includes(val)?[val,...opts]:opts;
+    input=`<select id="${id}" name="${f.k}" data-catsel><option value="">—</option>${list.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')}<option value="__nova">+ Nova marca…</option></select><input id="${id}-nova" name="${f.k}__nova" type="text" placeholder="Nome da nova marca" hidden>`;}
+  else if(f.t==='cat'){const opts=catList(col);const list=val&&!opts.includes(val)?[val,...opts]:opts;
     input=`<select id="${id}" name="${f.k}" data-catsel><option value="">—</option>${list.map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${esc(o)}</option>`).join('')}<option value="__nova">+ Nova categoria…</option></select><input id="${id}-nova" name="${f.k}__nova" type="text" placeholder="Nome da nova categoria" hidden>`;}
   else if(f.t==='select')input=`<select id="${id}" name="${f.k}">${(f.o.includes(val)||val===''?f.o:[val,...f.o]).map(o=>`<option value="${esc(o)}" ${o===val?'selected':''}>${o||'—'}</option>`).join('')}</select>`;
   else if(f.t==='textarea')input=`<textarea id="${id}" name="${f.k}">${esc(val)}</textarea>`;
@@ -2198,6 +2204,7 @@ $('#dlgform').addEventListener('submit',async e=>{
   const novasCats=[];
   for(const f of sc.fields){let v=fd.get(f.k);v=v==null?'':String(v).trim();
     if(f.t==='cat'&&v==='__nova'){v=String(fd.get(f.k+'__nova')||'').trim();if(!v){toast('Escreva o nome da nova categoria.');return}}
+    if(f.t==='marca'&&v==='__nova'){v=String(fd.get(f.k+'__nova')||'').trim();if(!v){toast('Escreva o nome da nova marca.');return}const ex=brandList(col).find(b=>norm(b)===norm(v));if(ex)v=ex}
     if(f.t==='cat'&&v&&!catList(col).some(c=>norm(c)===norm(v)))novasCats.push(v);
     if(f.t==='number'&&v!=='')v=+v;body[f.k]=v}
   if(novasCats.length)saveCats(col,[...catList(col),...novasCats]);
@@ -2220,6 +2227,7 @@ $('#dlgform').addEventListener('click',async e=>{
 });
 
 /* ---------- categorias ---------- */
+function brandList(col){return [...new Set(S.data[col].map(x=>String(x.marca||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'pt'))}
 function catList(col){
   const doc=S.data.categorias.find(x=>x.id===col);
   if(doc)return String(doc.lista||'').split('|').map(s=>s.trim()).filter(Boolean);
