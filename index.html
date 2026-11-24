@@ -725,9 +725,13 @@ const ST=[
   {k:'meio',l:'Meio fora',c:'var(--s-meio)'},
   {k:'muito',l:'Muito fora',c:'var(--s-muito)'},
   {k:'pulada',l:'Refeição pulada',c:'var(--s-pulada)'},
-  {k:'ptncho',l:'− PTN + CHO',c:'var(--s-ptncho)'},
-  {k:'lip',l:'+ LIP',c:'var(--s-lip)'}];
+];
 const STM=Object.fromEntries(ST.map(s=>[s.k,s]));
+/* opções antigas do diário, lidas como as atuais (a planilha não é reescrita) */
+const ST_ANTIGO={lip:'muito',ptncho:'meio'};
+const stNorm=v=>ST_ANTIGO[v]||v;
+Object.entries(ST_ANTIGO).forEach(([a,b])=>STM[a]=STM[b]);
+function diarioNorm(list){(list||[]).forEach(mo=>Object.values((mo&&mo.dias)||{}).forEach(day=>MEALS.forEach(m=>{if(day[m.k])day[m.k]=stNorm(day[m.k])})));return list}
 const MEALS=[{k:'cafe',l:'Café da manhã'},{k:'almoco',l:'Almoço'},{k:'lanche',l:'Café da tarde'},{k:'jantar',l:'Jantar'}];
 const WD=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
 
@@ -748,7 +752,7 @@ function rowsToData(d){
   const out={}; COLS.forEach(c=>out[c]=[]);
   for(const c of COLS){
     const rows=(d&&d[c])||[];
-    if(c==='diario'){const m={};rows.forEach(r=>{const day={};['cafe','almoco','lanche','jantar','obs'].forEach(k=>{if(r[k])day[k]=r[k]});if(!Object.keys(day).length)return;const ym=r.id.slice(0,7);(m[ym]=m[ym]||{id:ym,dias:{}}).dias[r.id]=day});out[c]=Object.values(m)}
+    if(c==='diario'){const m={};rows.forEach(r=>{const day={};['cafe','almoco','lanche','jantar','obs'].forEach(k=>{if(r[k])day[k]=k==='obs'?r[k]:stNorm(r[k])});if(!Object.keys(day).length)return;const ym=r.id.slice(0,7);(m[ym]=m[ym]||{id:ym,dias:{}}).dias[r.id]=day});out[c]=Object.values(m)}
     else if(c==='rotina'){const m={};rows.forEach(r=>{const l=String(r.habitos||'').split(',').filter(Boolean);if(!l.length)return;const ym=r.id.slice(0,7);(m[ym]=m[ym]||{id:ym,dias:{}}).dias[r.id]=l});out[c]=Object.values(m)}
     else out[c]=rows.map(r=>{const o={...r};if(o.exemplo==='true'||o.exemplo===true)o.exemplo=true;else delete o.exemplo;return o});
   }
@@ -758,7 +762,7 @@ function cache(){lsSet('sp-cache',JSON.stringify(S.data))}
 function persist(){lsSet('sp-pending',JSON.stringify(S.pending));cache()}
 
 async function initStore(){
-  try{const c=lsGet('sp-cache');if(c){const o=JSON.parse(c);COLS.forEach(k=>{if(Array.isArray(o[k]))S.data[k]=o[k]});S.ready=true}}catch(e){}
+  try{const c=lsGet('sp-cache');if(c){const o=JSON.parse(c);COLS.forEach(k=>{if(Array.isArray(o[k]))S.data[k]=o[k]});diarioNorm(S.data.diario);S.ready=true}}catch(e){}
   try{const p=lsGet('sp-pending');if(p)S.pending=JSON.parse(p)||{}}catch(e){}
   if(!CFG.url||!CFG.token){S.mode='setup';setStoreBadge();render(true);return}
   S.mode='sheets'; setStoreBadge(); render(true);
@@ -1206,7 +1210,7 @@ function viewDiario(){
   }
   const mealsBlock=MEALS.map(m=>{const pm=perMeal[m.k];const t=Object.values(pm).reduce((a,b)=>a+b,0)||1;return `<div class="mealrow"><span>${m.l}</span><div class="stackbar">${ST.map(s=>pm[s.k]?`<span style="width:${pm[s.k]/t*100}%;background:${s.c}" title="${s.l}: ${pm[s.k]}"></span>`:'').join('')}</div><span class="num muted" style="text-align:right">${pct(pm.dentro,t)}%</span></div>`}).join('');
   const wdBlock=`<div class="wk">${perWd.map((w,i)=>{const p=pct(w.d,w.t);return `<div><span class="num" style="color:var(--ink-2)">${w.t?p+'%':'—'}</span><span class="b" style="height:${Math.max(3,p)}%"></span><span>${WD[i]}</span></div>`}).join('')}</div>`;
-  const mealOut=MEALS.map(m=>{const pm=perMeal[m.k];const t=Object.values(pm).reduce((a,b)=>a+b,0);return{m,t,out:pm.meio+pm.muito+pm.ptncho+pm.lip,skip:pm.pulada}}).filter(x=>x.t);
+  const mealOut=MEALS.map(m=>{const pm=perMeal[m.k];const t=Object.values(pm).reduce((a,b)=>a+b,0);return{m,t,out:pm.meio+pm.muito,skip:pm.pulada}}).filter(x=>x.t);
   const worst=mealOut.slice().sort((a,b)=>b.out/b.t-a.out/a.t)[0]; const skipped=mealOut.slice().sort((a,b)=>b.skip/b.t-a.skip/a.t)[0];
   const sum=a=>a.reduce((x,w)=>({t:x.t+w.t,d:x.d+w.d}),{t:0,d:0}); const wdT=sum(perWd.slice(0,5)),weT=sum(perWd.slice(5));
   const ins=[];
@@ -2404,7 +2408,7 @@ function mapRows(col,rows){
   return{items,mapped};
 }
 function parseDiarioGrid(rows){
-  const MAPS={'dentrodoplano':'dentro','meioforadoplano':'meio','muitoforadoplano':'muito','refpulada':'pulada','menosptnmaischo':'ptncho','maislip':'lip','meiofora':'meio','muitofora':'muito'};
+  const MAPS={'dentrodoplano':'dentro','meioforadoplano':'meio','muitoforadoplano':'muito','refpulada':'pulada','menosptnmaischo':'meio','maislip':'muito','meiofora':'meio','muitofora':'muito'};
   const ML={'cafedamanha':'cafe','almoco':'almoco','cafedatarde':'lanche','lanche':'lanche','jantar':'jantar'};
   const days={}; let prev=null; const nowY=new Date().getFullYear();
   for(let i=0;i<rows.length;i++){
