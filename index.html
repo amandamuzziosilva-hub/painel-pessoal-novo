@@ -270,6 +270,14 @@ svg text{fill:var(--muted);font-family:var(--f-sans)}
 .mini b{font-weight:500}
 .kv{display:grid;grid-template-columns:minmax(120px,190px) 1fr;gap:10px 20px;font-size:.9rem;margin:0}
 .kv dt{color:var(--muted)} .kv dd{margin:0;white-space:pre-wrap}
+.hcol{display:flex;flex-direction:column;gap:16px;min-width:0}
+.remrow{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-bottom:1px solid var(--hair);cursor:pointer}
+.remrow:last-child{border-bottom:0}.remrow .rt{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.remrow .rt b{font-weight:500}.remrow .rq{font-size:.84rem;color:var(--ink-2)}
+.remrow .rc{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.remrow .progress{height:6px;margin-top:2px}
+.remfoot{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--hair);padding-top:12px}
+.remhist{display:flex;flex-direction:column}.remhist .remrow{opacity:.75}
 .rng{position:relative;height:6px;background:var(--surface-2);border-radius:6px;margin:8px 0 2px}
 .rng .okz{position:absolute;top:0;bottom:0;background:var(--ok-soft);border-radius:6px}
 .rng .dot{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;transform:translate(-50%,-50%);border:2px solid #fff}
@@ -1259,7 +1267,7 @@ function viewSaude(){
   const rng=e=>{if(!has(e.ref_min)||!has(e.ref_max))return'';const lo=+e.ref_min,hi=+e.ref_max,span=hi-lo||1,mn=lo-span*.5,mx=hi+span*.5;const pos=v=>Math.max(0,Math.min(100,(v-mn)/(mx-mn)*100));const s=statusOf(e)[0];return `<div class="rng"><div class="okz" style="left:${pos(lo)}%;width:${pos(hi)-pos(lo)}%"></div><div class="dot" style="left:${pos(+e.valor)}%;background:${s==='ok'?'var(--leaf)':'var(--orange)'}"></div></div>`};
   const t=today(); const upcoming=S.data.consultas.filter(c=>c.retorno&&c.retorno>=t).sort((a,b)=>a.retorno<b.retorno?-1:1);
   const cons=S.data.consultas.slice().sort((a,b)=>a.data<b.data?1:-1);
-  const fichaRows=SCHEMA.ficha.fields.filter(f=>ficha[f.k]).map(f=>`<dt>${f.l}</dt><dd>${f.t==='date'?fmtD(ficha[f.k]):esc(ficha[f.k])}${f.k==='altura'?' cm':''}</dd>`).join('');
+  const fichaRows=SCHEMA.ficha.fields.filter(f=>ficha[f.k]&&!(f.k==='medicacoes'&&remList().length)).map(f=>`<dt>${f.l}</dt><dd>${f.t==='date'?fmtD(ficha[f.k]):esc(ficha[f.k])}${f.k==='altura'?' cm':''}</dd>`).join('');
   const nr=upcoming[0];
   const exRows=names.map(n=>{const g=groups[n];const e=g[g.length-1];const s=statusOf(e);const prev=g[g.length-2];const delta=prev?(+e.valor-+prev.valor):null;
     return `<div class="exrow" tabindex="0" data-exsel="${esc(n)}"><div style="min-width:0"><b style="font-weight:500">${esc(n)}</b>${exPill(e)}<div class="muted tiny">${fmtD(e.data)}${e.laboratorio?' · '+esc(e.laboratorio):''}</div></div>
@@ -1272,14 +1280,102 @@ function viewSaude(){
   <section class="hero two">
     <article class="panel"><div class="head"><h3>Dados gerais</h3><button class="btn sm soft" data-edit="ficha" data-id="principal">${ico('edit')}Editar</button></div>
       ${fichaRows?`<dl class="kv">${fichaRows}</dl>`:'<p class="muted small">Tipo sanguíneo, alergias, condições, medicações contínuas, cirurgias, histórico familiar e vacinas. Preencha uma vez e atualize quando mudar.</p>'}</article>
-    <article class="glow rose" ${nr?`data-edit="consultas" data-id="${nr.id}" style="cursor:pointer"`:''}><span class="lbl">Próximo retorno</span><h3>${nr?esc(nr.especialidade):'Nenhum agendado'}</h3><span class="sub">${nr?esc(nr.profissional||nr.motivo||''):'Registre a data de retorno ao salvar uma consulta'}</span>
+    <div class="hcol"><article class="glow rose" ${nr?`data-edit="consultas" data-id="${nr.id}" style="cursor:pointer"`:''}><span class="lbl">Próximo retorno</span><h3>${nr?esc(nr.especialidade):'Nenhum agendado'}</h3><span class="sub">${nr?esc(nr.profissional||nr.motivo||''):'Registre a data de retorno ao salvar uma consulta'}</span>
       ${nr?`<div class="big">${diffDays(t,nr.retorno)}<small>dias · ${fmtD(nr.retorno)}</small></div>`:''}</article>
+    ${remCard()}</div>
   </section>
   <section class="sec"><div class="sec-head"><div><h2>Exames</h2><p>Último resultado de cada exame. Toque para ver o histórico.</p></div></div>
     ${names.length?`<div class="list">${exRows}</div>`:empty('Nenhum exame ainda','Registre cada resultado com data, valor, unidade e a referência do laboratório.')}</section>
   <section class="sec"><div class="sec-head"><div><h2>Consultas</h2><p>Histórico e condutas</p></div><button class="btn dark" data-new="consultas">${ico('plus')}Consulta</button></div>
     ${cons.length?`<div class="panel"><div class="rows">${cons.map(c=>`<div class="rowi" data-edit="consultas" data-id="${c.id}"><div><b>${esc(c.especialidade)}</b>${exPill(c)}<div class="sub">${[c.profissional,c.motivo].filter(Boolean).map(esc).join(' · ')}</div></div><span class="num muted small">${fmtD(c.data)}</span></div>`).join('')}</div></div>`:empty('Nenhuma consulta registrada','Anote especialidade, motivo, conduta e data de retorno.')}</section>`;
 }
+
+/* ---------- REMÉDIOS (dentro da ficha de saúde, campo "remedios" em JSON) ---------- */
+const REMTIPO=[['continuo','Uso contínuo'],['tratamento','Tratamento com prazo'],['sos','Quando precisar']];
+const REMTIPOM=Object.fromEntries(REMTIPO);
+function remList(){const f=S.data.ficha.find(x=>x.id==='principal');try{const l=JSON.parse((f&&f.remedios)||'[]');return Array.isArray(l)?l:[]}catch(e){return[]}}
+function remSave(list){const f=S.data.ficha.find(x=>x.id==='principal')||{};const b={...f};delete b.id;b.remedios=JSON.stringify(list);return save('ficha','principal',b)}
+const remAtivo=r=>!(r.parou_em&&r.parou_em<=today());
+const REMORD={continuo:0,tratamento:1,sos:2};
+function remSort(a,b){return (REMORD[a.tipo]??3)-(REMORD[b.tipo]??3)||String(a.nome).localeCompare(String(b.nome),'pt')}
+function remRow(r){
+  const t=today(); let extra='';
+  if(r.tipo==='tratamento'&&r.inicio&&r.fim_previsto&&remAtivo(r)){
+    const tot=Math.max(1,diffDays(r.inicio,r.fim_previsto)+1), dia=diffDays(r.inicio,t)+1;
+    extra=dia<1?`<span class="tchip">Começa ${fmtDS(r.inicio)}</span>`:dia>tot?`<span class="tchip warn">Fim previsto passou (${fmtDS(r.fim_previsto)})</span>`:`<span class="muted tiny">Dia ${dia} de ${tot} · até ${fmtDS(r.fim_previsto)}</span>`;
+    if(dia>=1&&dia<=tot)extra+=`<div class="progress" style="width:100%"><i style="width:${Math.round(dia/tot*100)}%"></i></div>`;
+  }
+  const quando=!remAtivo(r)?`${r.inicio?fmtD(r.inicio):'?'} – ${fmtD(r.parou_em)}`:r.tipo==='continuo'&&r.inicio?`desde ${fmtD(r.inicio)}`:'';
+  return `<div class="remrow" tabindex="0" data-rem="${esc(r.id)}"><div class="rt"><b>${esc(r.nome)}${r.dose?` <span class="muted" style="font-weight:400">· ${esc(r.dose)}</span>`:''}</b>${quando?`<span class="muted tiny" style="white-space:nowrap">${quando}</span>`:''}</div>
+    ${r.horarios?`<div class="rq">${esc(r.horarios)}</div>`:''}
+    <div class="rc">${r.tipo&&REMTIPOM[r.tipo]?`<span class="tchip">${REMTIPOM[r.tipo]}</span>`:''}${r.ativo?`<span class="tchip">${esc(r.ativo)}</span>`:''}${extra}</div></div>`;
+}
+function remCard(){
+  const l=remList(), on=l.filter(remAtivo).sort(remSort), off=l.filter(r=>!remAtivo(r)).sort((a,b)=>String(b.parou_em).localeCompare(String(a.parou_em)));
+  return `<article class="panel"><div class="head"><h3>Remédios em uso${on.length?` <span class="muted" style="font-weight:400">· ${on.length}</span>`:''}</h3><button class="btn sm dark" data-remnew>${ico('plus')}Remédio</button></div>
+    ${on.length?`<div class="rows">${on.map(remRow).join('')}</div>`:'<p class="muted small" style="margin:0">Nenhum remédio em uso cadastrado. Toque em “+ Remédio” para adicionar.</p>'}
+    ${UI.remHist&&off.length?`<div class="remhist"><span class="label" style="margin-top:6px">Histórico</span>${off.map(remRow).join('')}</div>`:''}
+    <div class="remfoot">${on.length?`<button class="btn sm soft" data-remcopy>Copiar lista para análise</button>`:''}${off.length?`<button class="btn sm soft" data-remhist>${UI.remHist?'Esconder histórico':`Histórico · ${off.length}`}</button>`:''}</div></article>`;
+}
+function remText(){
+  const f=S.data.ficha.find(x=>x.id==='principal')||{}; const on=remList().filter(remAtivo).sort(remSort);
+  const lines=[`Remédios em uso (${fmtD(today())})`];
+  on.forEach(r=>lines.push('• '+[r.nome+(r.ativo?` (${r.ativo})`:''),r.dose,r.horarios,REMTIPOM[r.tipo]?(r.tipo==='tratamento'&&r.inicio&&r.fim_previsto?`tratamento de ${fmtD(r.inicio)} a ${fmtD(r.fim_previsto)}`:REMTIPOM[r.tipo]+(r.inicio?` desde ${fmtD(r.inicio)}`:'')):'',r.motivo?`para: ${r.motivo}`:'',r.obs].filter(Boolean).join(' · ')));
+  const sup=(S.data.suplementos||[]).filter(s=>s.em_uso==='Sim');
+  if(sup.length){lines.push('','Suplementos em uso');sup.forEach(s=>lines.push('• '+[s.nome,s.dose,s.horario].filter(Boolean).join(' · ')))}
+  if(f.alergias)lines.push('','Alergias e intolerâncias: '+f.alergias);
+  if(f.condicoes)lines.push('','Condições de saúde: '+f.condicoes);
+  return lines.join('\n');
+}
+async function remCopy(){
+  const txt=remText();
+  try{await navigator.clipboard.writeText(txt);toast('Lista copiada. Cole aqui no Claude para a análise.');return}catch(e){}
+  const a=document.createElement('textarea');a.value=txt;document.body.appendChild(a);a.select();try{document.execCommand('copy');toast('Lista copiada. Cole aqui no Claude para a análise.')}catch(e){toast('Não consegui copiar.')}a.remove();
+}
+function remForm(id){
+  const r=id?remList().find(x=>x.id===id):null; if(id&&!r)return;
+  formCtx={rem:true,id:id||null}; const v=k=>esc((r&&r[k])||'');
+  const tipo=(r&&r.tipo)||'continuo';
+  $('#dlgform').innerHTML=`<div class="mh"><h2>${r?'Editar remédio':'Novo remédio'}</h2><button type="button" class="btn sm icon soft" data-close aria-label="Fechar">${ico('x')}</button></div>
+   <div class="mb">
+    <div class="field full"><label for="r-nome">Remédio *</label><input id="r-nome" name="nome" value="${v('nome')}" placeholder="Nome comercial ou genérico" required></div>
+    <div class="field"><label for="r-ativo">Princípio ativo</label><input id="r-ativo" name="ativo" value="${v('ativo')}"><span class="hint">A substância que faz efeito. Ajuda na análise de interações.</span></div>
+    <div class="field"><label for="r-dose">Dose</label><input id="r-dose" name="dose" value="${v('dose')}" placeholder="Ex.: 50 mg, 1 comprimido"></div>
+    <div class="field full"><label for="r-hor">Quando tomo</label><input id="r-hor" name="horarios" value="${v('horarios')}" placeholder="Ex.: 08:00 em jejum · 1× por semana, às quintas"></div>
+    <div class="field full"><label for="r-tipo">Tipo de uso</label><select id="r-tipo" name="tipo">${REMTIPO.map(([k,l])=>`<option value="${k}" ${k===tipo?'selected':''}>${l}</option>`).join('')}</select></div>
+    <div class="field"><label for="r-ini">Comecei em</label><input id="r-ini" name="inicio" type="date" value="${v('inicio')}"></div>
+    <div class="field"><label for="r-fim">Fim previsto</label><input id="r-fim" name="fim_previsto" type="date" value="${v('fim_previsto')}"><span class="hint">Para tratamentos com prazo.</span></div>
+    <div class="field"><label for="r-parou">Parei em</label><input id="r-parou" name="parou_em" type="date" value="${v('parou_em')}"><button type="button" class="btn sm soft" data-remstop style="align-self:flex-start;margin-top:4px">Parei hoje</button></div>
+    <div class="field"><label for="r-presc">Prescrito por</label><input id="r-presc" name="prescritor" value="${v('prescritor')}"></div>
+    <div class="field full"><label for="r-mot">Para que serve</label><input id="r-mot" name="motivo" value="${v('motivo')}"></div>
+    <div class="field full"><label for="r-obs">Observações</label><textarea id="r-obs" name="obs">${v('obs')}</textarea></div>
+   </div>
+   <div class="mf"><div>${r?`<button type="button" class="btn danger" data-remdel>Excluir</button>`:''}</div><div class="actions"><button type="button" class="btn soft" data-close>Cancelar</button><button type="submit" class="btn dark">Salvar</button></div></div>`;
+  $('#dlg').showModal();
+}
+function remSaveForm(fd){
+  const {id}=formCtx; const g=k=>String(fd.get(k)||'').trim();
+  const r={id:id||uid(),nome:g('nome'),ativo:g('ativo'),dose:g('dose'),horarios:g('horarios'),tipo:g('tipo'),inicio:g('inicio'),fim_previsto:g('fim_previsto'),parou_em:g('parou_em'),prescritor:g('prescritor'),motivo:g('motivo'),obs:g('obs')};
+  if(!r.nome){toast('Escreva o nome do remédio.');return}
+  if(r.inicio&&r.parou_em&&r.parou_em<r.inicio){toast('A data em que parou é antes do início.');return}
+  Object.keys(r).forEach(k=>{if(r[k]==='')delete r[k]});
+  const l=remList(); const i=l.findIndex(x=>x.id===r.id); if(i>=0)l[i]=r;else l.push(r);
+  remSave(l); $('#dlg').close(); formCtx=null; toast(r.parou_em&&r.parou_em<=today()?'Remédio salvo no histórico':'Remédio salvo');
+}
+document.addEventListener('click',e=>{
+  const g=s=>e.target.closest&&e.target.closest(s);
+  if(g('[data-remnew]')){remForm(null);return}
+  if(g('[data-remcopy]')){remCopy();return}
+  if(g('[data-remhist]')){UI.remHist=!UI.remHist;render(true);return}
+  const row=g('[data-rem]'); if(row&&!g('#dlg')){remForm(row.dataset.rem);return}
+});
+$('#dlgform').addEventListener('click',e=>{
+  if(!formCtx||!formCtx.rem)return;
+  if(e.target.closest('[data-remstop]')){$('#r-parou').value=today();return}
+  const d=e.target.closest('[data-remdel]'); if(!d)return;
+  if(!d.dataset.confirm){d.dataset.confirm='1';d.textContent='Confirmar exclusão';return}
+  remSave(remList().filter(x=>x.id!==formCtx.id)); $('#dlg').close(); formCtx=null; toast('Remédio excluído');
+});
 
 /* ---------- ROTINA ---------- */
 function rotinaDay(d){const doc=S.data.rotina.find(x=>x.id===d.slice(0,7));return (doc&&doc.dias&&doc.dias[d])||[]}
@@ -2195,6 +2291,7 @@ $('#dlgform').addEventListener('change',e=>{const t=e.target;if(t.matches('[data
 $('#dlgform').addEventListener('submit',async e=>{
   e.preventDefault(); if(!formCtx)return;
   if(formCtx.tarefa){return saveTaskForm(e.target)}
+  if(formCtx.rem){return remSaveForm(new FormData(e.target))}
   if(formCtx.pimport){return runPlanImport()}
   if(formCtx.import){return runImport()}
   if(formCtx.settings){return saveSettings(new FormData(e.target))}
